@@ -1,30 +1,118 @@
-# React + TypeScript + Vite
+# ModRay
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Minecraft Mod Development Environment**
 
-Currently, two official plugins are available:
+ModRay is a desktop development environment designed to make Minecraft mod development easier and more accessible.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+> **ModRay is currently in early development.**
+> This project is not yet considered stable.
 
-## Expanding the ESLint configuration
+## Features
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+* **Java Code Editor**
 
-- Configure the top-level `parserOptions` property like this:
+  * Monaco Editor powered code editing
+  * Syntax highlighting and development-friendly editing
 
-```js
-export default {
-  // other rules...
-  parserOptions: {
-    ecmaVersion: 'latest',
-    sourceType: 'module',
-    project: ['./tsconfig.json', './tsconfig.node.json'],
-    tsconfigRootDir: __dirname,
-  },
-}
-```
+* **Project Explorer**
 
-- Replace `plugin:@typescript-eslint/recommended` to `plugin:@typescript-eslint/recommended-type-checked` or `plugin:@typescript-eslint/strict-type-checked`
-- Optionally add `plugin:@typescript-eslint/stylistic-type-checked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and add `plugin:react/recommended` & `plugin:react/jsx-runtime` to the `extends` list
+  * Browse and manage files in your mod project
+  * Open and edit source files directly from ModRay
+
+* **Integrated Terminal**
+
+  * Run Gradle and other development commands
+  * View build output and logs inside ModRay
+
+* **Project Creation**
+
+  * Create a new Minecraft mod project from ModRay
+  * Configure project name, Group ID, Minecraft version and mod loader
+
+* **Java Configuration**
+
+  * Configure Java paths for Minecraft development
+  * Version-specific Java configuration is supported
+
+## Supported Minecraft Versions
+
+Currently, ModRay is focused on:
+
+* Minecraft **1.20.1**
+* **Fabric**
+
+Additional Minecraft versions and mod loaders are planned for future releases.
+
+## Getting Started
+
+### Requirements
+
+Before using ModRay, make sure you have:
+
+* Windows 10 / 11
+* Java (required for Minecraft mod development)
+* A Minecraft mod development environment supported by ModRay
+
+### Installation
+
+Download the latest Windows installer from the **Releases** page.
+
+Run the installer and follow the setup instructions.
+
+## Mod Loaders
+
+### Fabric
+
+Fabric is currently the primary supported mod loader.
+
+### NeoForge
+
+NeoForge support is **currently unavailable** while development continues.
+
+## Roadmap
+
+ModRay is still under active development.
+
+Planned features include:
+
+* [ ] More Minecraft versions
+* [ ] NeoForge support
+* [ ] Improved Gradle integration
+* [ ] Automatic Java installation and management
+* [ ] Better project templates
+* [ ] Mod metadata editor
+* [ ] Improved error reporting
+* [ ] Localization / community translations
+* [ ] More customization options
+
+The roadmap may change as development progresses.
+
+## Localization
+
+ModRay is planned to support community-driven translations.
+
+More information about contributing translations will be available in the future.
+
+## Contributing
+
+ModRay is currently in an early development stage.
+
+For now, contributions may be limited while the project structure and APIs are being developed.
+
+More contribution guidelines will be added as the project matures.
+
+## License
+
+ModRay is released under the **MIT License**.
+
+See [`LICENSE`](./LICENSE) for the full license text.
+
+## DangoCraftStudio
+
+ModRay is developed as part of **DangoCraftStudio**.
+
+The goal of DangoCraftStudio is to create tools and projects that make Minecraft development and server management easier and more enjoyable.
+
+---
+
+**ModRay 0.1.0 — Early Development Release**
