@@ -6,13 +6,20 @@ interface EditorProps {
   filePath: string;
   onBuild?: () => void;
   onRun?: () => void;
+  onStop?: () => void;
+  isBuilding?: boolean;
+  isRunning?: boolean;
+  onContentChange?: (content: string) => void;
+  aiContentRequest?: string | null;
+  reloadKey?: number;
 }
 
-export default function Editor({ filePath, onBuild, onRun }: EditorProps) {
+export default function Editor({ filePath, onBuild, onRun, onStop, isBuilding = false, isRunning = false, onContentChange, reloadKey }: EditorProps) {
   const [content, setContent] = useState<string>("// Loading...");
   const [statusMessage, setStatusMessage] = useState<string>("");
   const editorRef = useRef<any>(null);
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isExternalReloadRef = useRef(false);
 
   // 💡 最新の filePath を常に参照できるように ref で保持
   const currentPathRef = useRef<string>(filePath);
@@ -31,8 +38,15 @@ export default function Editor({ filePath, onBuild, onRun }: EditorProps) {
     async function fetchFile() {
       try {
         const result = await window.api.loadFile(filePath);
+
         if (result && result.success && result.content !== undefined) {
+          isExternalReloadRef.current = true;
           setContent(result.content);
+
+          // React → Monaco の更新が反映されたあとに解除
+          setTimeout(() => {
+            isExternalReloadRef.current = false;
+          }, 0);
         } else {
           setContent(`// Error: ${result?.message || "Failed to load file"}`);
         }
@@ -48,13 +62,33 @@ export default function Editor({ filePath, onBuild, onRun }: EditorProps) {
         clearTimeout(saveTimerRef.current);
       }
     };
-  }, [filePath]);
+  }, [filePath, reloadKey]);
+
+  useEffect(() => {
+    console.log("[EDITOR COMPONENT] Reload triggered:", reloadKey, filePath);
+
+    // ...
+  }, [filePath, reloadKey]);
 
   const handleEditorDidMount = (editor: any) => {
     editorRef.current = editor;
 
-    editor.onDidChangeModelContent(() => {
+    editor.onDidPaste(() => {
       const currentCode = editor.getValue();
+      const cleanedCode = normalizeWhitespaceText(currentCode);
+
+      if (cleanedCode !== currentCode) {
+        editor.setValue(cleanedCode);
+      }
+    });
+
+    editor.onDidChangeModelContent(() => {
+        if (isExternalReloadRef.current) {
+          return;
+        }
+      const currentCode = editor.getValue();
+      
+      onContentChange?.(currentCode);
 
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
@@ -78,6 +112,41 @@ export default function Editor({ filePath, onBuild, onRun }: EditorProps) {
         }
       }, 1000);
     });
+  };
+
+  const normalizeWhitespaceText = (text: string): string => {
+    const normalized = text
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      .replace(/\t/g, "    ")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/^[\n\s]+|[\n\s]+$/g, "");
+
+    return normalized
+      .split("\n")
+      .map((line) => line.replace(/[ \t]+$/g, ""))
+      .map((line) => {
+        const match = line.match(/^\s+/);
+        if (!match) return line;
+
+        const leadingSpaces = match[0].length;
+        const normalizedIndent = Math.round(leadingSpaces / 4) * 4;
+        return " ".repeat(normalizedIndent) + line.trimStart();
+      })
+      .join("\n");
+  };
+
+  const applyWhitespaceCleanup = () => {
+    if (!editorRef.current) return;
+
+    const currentText = editorRef.current.getValue();
+    const fixedText = normalizeWhitespaceText(currentText);
+
+    if (currentText !== fixedText) {
+      editorRef.current.setValue(fixedText);
+      setStatusMessage("✓ Whitespace fixed");
+    }
   };
 
   const handleUndo = () => {
@@ -135,6 +204,16 @@ export default function Editor({ filePath, onBuild, onRun }: EditorProps) {
           <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>redo</span>
         </button>
 
+        <button
+          onClick={applyWhitespaceCleanup}
+          style={editorBtnStyle}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "#2a2a2a")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "#1f1f1f")}
+          title="Fix whitespace"
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>format_clear</span>
+        </button>
+
         <div style={{ height: "14px", width: "1px", background: "#333" }} />
 
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -147,22 +226,46 @@ export default function Editor({ filePath, onBuild, onRun }: EditorProps) {
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "10px" }}>
           <button
             onClick={onBuild}
-            style={{ ...actionBtnStyle, borderColor: "#00AF5C", color: "#00AF5C" }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0, 175, 92, 0.15)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            disabled={isBuilding || isRunning}
+            style={{
+              ...actionBtnStyle,
+              borderColor: isBuilding || isRunning ? "#3a3a3a" : "#00AF5C",
+              color: isBuilding || isRunning ? "#6a6a6a" : "#00AF5C",
+              background: isBuilding || isRunning ? "#1f1f1f" : "transparent",
+              opacity: isBuilding || isRunning ? 0.75 : 1,
+              cursor: isBuilding || isRunning ? "not-allowed" : "pointer",
+            }}
+            onMouseEnter={(e) => {
+              if (!isBuilding && !isRunning) e.currentTarget.style.background = "rgba(0, 175, 92, 0.15)";
+            }}
+            onMouseLeave={(e) => {
+              if (!isBuilding && !isRunning) e.currentTarget.style.background = "transparent";
+            }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>build</span>
             Build
           </button>
 
           <button
-            onClick={onRun}
-            style={{ ...actionBtnStyle, background: "#00AF5C", color: "#ffffff", borderColor: "#00AF5C" }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#009950")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "#00AF5C")}
+            onClick={isBuilding ? undefined : isRunning ? onStop : onRun}
+            disabled={isBuilding}
+            style={{
+              ...actionBtnStyle,
+              background: isRunning ? "#d32f2f" : "#00AF5C",
+              color: "#ffffff",
+              borderColor: isRunning ? "#d32f2f" : "#00AF5C",
+              opacity: isBuilding ? 0.7 : 1,
+              cursor: isBuilding ? "not-allowed" : "pointer",
+            }}
+            onMouseEnter={(e) => {
+              if (!isBuilding) e.currentTarget.style.background = isRunning ? "#b71c1c" : "#009950";
+            }}
+            onMouseLeave={(e) => {
+              if (!isBuilding) e.currentTarget.style.background = isRunning ? "#d32f2f" : "#00AF5C";
+            }}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>play_arrow</span>
-            Run Minecraft
+            <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>{isRunning ? "stop" : "play_arrow"}</span>
+            {isRunning ? "Stop Minecraft" : "Run Minecraft"}
           </button>
 
           <span style={{ color: statusMessage.includes("❌") ? "#f44336" : "#00AF5C", fontSize: "11px", fontWeight: "500", minWidth: "80px", textAlign: "right" }}>

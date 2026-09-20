@@ -14,9 +14,28 @@ type SettingsTab =
   | "appearance"
   | "about";
 
+const PROJECT_DIRECTORY_STORAGE_KEY = "modray-project-directory";
+
+const getDefaultProjectDirectory = () => {
+  const stored = localStorage.getItem(PROJECT_DIRECTORY_STORAGE_KEY);
+  if (stored && stored.trim()) {
+    return stored;
+  }
+
+  const env = (window as any).process?.env ?? {};
+  const home =
+    env.USERPROFILE ||
+    env.HOMEDRIVE && env.HOMEPATH
+      ? `${env.HOMEDRIVE}${env.HOMEPATH}`
+      : env.HOME ||
+        "C:\\Users\\Default";
+
+  return `${home.replace(/[\\/]$/, "")}\\ModRayProjects`;
+};
+
 export default function Settings() {
   const [currentTab, setCurrentTab] =
-    useState<SettingsTab>("java");
+    useState<SettingsTab>("general");
 
   const [javaVersions, setJavaVersions] = useState<
     JavaVersion[]
@@ -62,8 +81,12 @@ useEffect(() => {
   scanJava();
 }, []);
 
-  const [projectDirectory, setProjectDirectory] =
-    useState("");
+  const [projectDirectory, setProjectDirectory] = useState<string>(() => {
+    const saved = localStorage.getItem(PROJECT_DIRECTORY_STORAGE_KEY);
+    return saved && saved.trim() ? saved : getDefaultProjectDirectory();
+  });
+
+  const [pathWarning, setPathWarning] = useState("");
 
   const [language, setLanguage] =
     useState("English");
@@ -71,26 +94,58 @@ useEffect(() => {
   const [confirmDelete, setConfirmDelete] =
     useState(true);
 
-  const [gradleDaemon, setGradleDaemon] =
-    useState(true);
+  useEffect(() => {
+    localStorage.setItem(PROJECT_DIRECTORY_STORAGE_KEY, projectDirectory);
+  }, [projectDirectory]);
 
-  const [offlineMode, setOfflineMode] =
-    useState(false);
+  const validateProjectDirectory = async (value: string) => {
+    const trimmed = value.trim();
 
-  const [fontSize, setFontSize] =
-    useState(14);
+    if (!trimmed) {
+      setPathWarning("Please enter a path.");
+      return false;
+    }
 
-  const [wordWrap, setWordWrap] =
-    useState(true);
+    const isAbsolutePath = /^[A-Za-z]:[\\/]|^\\\\|^\//.test(trimmed);
+    if (!isAbsolutePath) {
+      setPathWarning("Please enter an absolute path. Example: C:\\ModRayProjects");
+      return false;
+    }
 
-  const [minimap, setMinimap] =
-    useState(true);
+    try {
+      const exists = await window.api.checkFileExists(trimmed);
+      if (!exists) {
+        setPathWarning("This path does not exist. Please create the folder first or specify a different path.");
+        return false;
+      }
+    } catch (error) {
+      console.error("Failed to validate project directory:", error);
+      setPathWarning("Failed to validate the path. Please check your input.");
+      return false;
+    }
 
-  const [theme, setTheme] =
-    useState("Dark");
+    setPathWarning("");
+    return true;
+  };
 
-  const [uiScale, setUiScale] =
-    useState(100);
+  const handleProjectDirectoryChange = async (value: string) => {
+    setProjectDirectory(value);
+    await validateProjectDirectory(value);
+  };
+
+  const handleProjectDirectorySelect = async () => {
+    try {
+      const result = await window.api.selectDirectory();
+
+      if (result.success && result.path) {
+        setProjectDirectory(result.path);
+        await validateProjectDirectory(result.path);
+      }
+    } catch (error) {
+      console.error("Failed to select project directory:", error);
+      setPathWarning("Failed to select a folder. Please try again.");
+    }
+  };
 
   const handlePathChange = (
     version: string,
@@ -173,6 +228,7 @@ const handleInstall = async (version: string) => {
         : "#aaa",
     fontSize: "14px",
     transition: "all 0.2s",
+    boxShadow: currentTab === tab ? "0 0 0 1px rgba(0,175,92,0.18)" : "none",
   });
 
   const inputStyle: React.CSSProperties = {
@@ -192,6 +248,7 @@ const handleInstall = async (version: string) => {
     marginBottom: "6px",
     fontSize: "22px",
     color: "#fff",
+    userSelect: "none",
   };
 
   const descriptionStyle: React.CSSProperties = {
@@ -199,6 +256,7 @@ const handleInstall = async (version: string) => {
     fontSize: "13px",
     marginTop: 0,
     marginBottom: "24px",
+    userSelect: "none",
   };
 
   const cardStyle: React.CSSProperties = {
@@ -207,6 +265,7 @@ const handleInstall = async (version: string) => {
     borderRadius: "10px",
     padding: "18px",
     marginBottom: "14px",
+    userSelect: "none",
   };
 
   return (
@@ -232,35 +291,91 @@ const handleInstall = async (version: string) => {
       >
         <button
           onClick={() => setCurrentTab("general")}
-          style={tabStyle("general")}
+          style={{ ...tabStyle("general"), userSelect: "none" }}
+          onMouseEnter={(e) => {
+            if (currentTab !== "general") {
+              e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+            }
+            e.currentTarget.style.userSelect = "none";
+          }}
+          onMouseLeave={(e) => {
+            if (currentTab !== "general") {
+              e.currentTarget.style.background = "transparent";
+            }
+            e.currentTarget.style.userSelect = "none";
+          }}
         >
           General
         </button>
 
         <button
           onClick={() => setCurrentTab("java")}
-          style={tabStyle("java")}
+          style={{ ...tabStyle("java"), userSelect: "none" }}
+          onMouseEnter={(e) => {
+            if (currentTab !== "java") {
+              e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+            }
+            e.currentTarget.style.userSelect = "none";
+          }}
+          onMouseLeave={(e) => {
+            if (currentTab !== "java") {
+              e.currentTarget.style.background = "transparent";
+            }
+          }}
         >
           Java
         </button>
 
         <button
           onClick={() => setCurrentTab("build")}
-          style={tabStyle("build")}
+          style={{ ...tabStyle("build"), userSelect: "none" }}
+          onMouseEnter={(e) => {
+            if (currentTab !== "build") {
+              e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+            }
+            e.currentTarget.style.userSelect = "none";
+          }}
+          onMouseLeave={(e) => {
+            if (currentTab !== "build") {
+              e.currentTarget.style.background = "transparent";
+            }
+          }}
         >
           Build
         </button>
 
         <button
           onClick={() => setCurrentTab("editor")}
-          style={tabStyle("editor")}
+          style={{ ...tabStyle("editor"), userSelect: "none" }}
+          onMouseEnter={(e) => {
+            if (currentTab !== "editor") {
+              e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+            }
+            e.currentTarget.style.userSelect = "none";
+          }}
+          onMouseLeave={(e) => {
+            if (currentTab !== "editor") {
+              e.currentTarget.style.background = "transparent";
+            }
+          }}
         >
           Editor
         </button>
 
         <button
           onClick={() => setCurrentTab("appearance")}
-          style={tabStyle("appearance")}
+          style={{ ...tabStyle("appearance"), userSelect: "none" }}
+          onMouseEnter={(e) => {
+            if (currentTab !== "appearance") {
+              e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+            }
+            e.currentTarget.style.userSelect = "none";
+          }}
+          onMouseLeave={(e) => {
+            if (currentTab !== "appearance") {
+              e.currentTarget.style.background = "transparent";
+            }
+          }}
         >
           Appearance
         </button>
@@ -269,7 +384,18 @@ const handleInstall = async (version: string) => {
 
         <button
           onClick={() => setCurrentTab("about")}
-          style={tabStyle("about")}
+          style={{ ...tabStyle("about"), userSelect: "none" }}
+          onMouseEnter={(e) => {
+            if (currentTab !== "about") {
+              e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+            }
+            e.currentTarget.style.userSelect = "none";
+          }}
+          onMouseLeave={(e) => {
+            if (currentTab !== "about") {
+              e.currentTarget.style.background = "transparent";
+            }
+          }}
         >
           About
         </button>
@@ -307,14 +433,60 @@ const handleInstall = async (version: string) => {
                 Default project directory
               </div>
 
-              <input
-                value={projectDirectory}
-                onChange={(e) =>
-                  setProjectDirectory(e.target.value)
-                }
-                placeholder="C:\\Users\\YourName\\ModRayProjects"
-                style={inputStyle}
-              />
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+              >
+                <input
+                  value={projectDirectory}
+                  onChange={(e) => handleProjectDirectoryChange(e.target.value)}
+                  placeholder="C:\\Users\\YourName\\ModRayProjects"
+                  style={{
+                    ...inputStyle,
+                    flex: 1,
+                  }}
+                />
+
+                <button
+                  type="button"
+                  onClick={handleProjectDirectorySelect}
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: "7px",
+                    border: "1px solid #333",
+                    background: "#1d1d1d",
+                    color: "#fff",
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    whiteSpace: "nowrap",
+                    transition: "all 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "#2a2a2a";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "#1d1d1d";
+                  }}
+                >
+                  Select folder
+                </button>
+              </div>
+
+              {pathWarning && (
+                <div
+                  style={{
+                    marginTop: "8px",
+                    color: "#ff8a80",
+                    fontSize: "12px",
+                    userSelect: "none",
+                  }}
+                >
+                  {pathWarning}
+                </div>
+              )}
             </div>
 
             <div style={cardStyle}>
@@ -332,7 +504,14 @@ const handleInstall = async (version: string) => {
                 onChange={(e) =>
                   setLanguage(e.target.value)
                 }
-                style={inputStyle}
+                disabled
+                style={{
+                  ...inputStyle,
+                  background: "#0e0e0e",
+                  color: "#6d6d6d",
+                  cursor: "not-allowed",
+                  opacity: 0.7,
+                }}
               >
                 <option>English</option>
                 <option>Japanese</option>
@@ -416,6 +595,15 @@ const handleInstall = async (version: string) => {
                         ? "#777"
                         : "#fff",
                       fontWeight: 600,
+                      transition: "all 0.2s",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!java.installed) {
+                        e.currentTarget.style.filter = "brightness(0.9)";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.filter = "brightness(1)";
                     }}
                   >
                     {java.installed
@@ -446,136 +634,44 @@ const handleInstall = async (version: string) => {
         {/* Build */}
         {currentTab === "build" && (
           <>
-            <h2 style={sectionTitleStyle}>
-              Build
-            </h2>
+            <h2 style={sectionTitleStyle}>Build</h2>
+            <p style={descriptionStyle}>Coming soon.</p>
 
-            <p style={descriptionStyle}>
-              Configure Gradle and project build behavior.
-            </p>
-
-            <SettingToggle
-              title="Gradle Daemon"
-              description="Keep Gradle running in the background to speed up builds."
-              value={gradleDaemon}
-              onChange={setGradleDaemon}
-            />
-
-            <SettingToggle
-              title="Offline mode"
-              description="Build projects without downloading dependencies."
-              value={offlineMode}
-              onChange={setOfflineMode}
-            />
+            <div style={cardStyle}>
+              <div style={{ fontWeight: 600, marginBottom: "6px" }}>Coming soon</div>
+              <div style={{ color: "#888", fontSize: "13px" }}>
+                Build settings are not available yet.
+              </div>
+            </div>
           </>
         )}
 
         {/* Editor */}
         {currentTab === "editor" && (
           <>
-            <h2 style={sectionTitleStyle}>
-              Editor
-            </h2>
-
-            <p style={descriptionStyle}>
-              Customize the ModRay code editor.
-            </p>
+            <h2 style={sectionTitleStyle}>Editor</h2>
+            <p style={descriptionStyle}>Coming soon.</p>
 
             <div style={cardStyle}>
-              <div
-                style={{
-                  fontWeight: 600,
-                  marginBottom: "10px",
-                }}
-              >
-                Font size
+              <div style={{ fontWeight: 600, marginBottom: "6px" }}>Coming soon</div>
+              <div style={{ color: "#888", fontSize: "13px" }}>
+                Editor settings are not available yet.
               </div>
-
-              <input
-                type="number"
-                value={fontSize}
-                min="10"
-                max="32"
-                onChange={(e) =>
-                  setFontSize(Number(e.target.value))
-                }
-                style={inputStyle}
-              />
             </div>
-
-            <SettingToggle
-              title="Word wrap"
-              description="Wrap long lines in the editor."
-              value={wordWrap}
-              onChange={setWordWrap}
-            />
-
-            <SettingToggle
-              title="Minimap"
-              description="Show the code minimap."
-              value={minimap}
-              onChange={setMinimap}
-            />
           </>
         )}
 
         {/* Appearance */}
         {currentTab === "appearance" && (
           <>
-            <h2 style={sectionTitleStyle}>
-              Appearance
-            </h2>
-
-            <p style={descriptionStyle}>
-              Customize the appearance of ModRay.
-            </p>
+            <h2 style={sectionTitleStyle}>Appearance</h2>
+            <p style={descriptionStyle}>Coming soon.</p>
 
             <div style={cardStyle}>
-              <div
-                style={{
-                  fontWeight: 600,
-                  marginBottom: "8px",
-                }}
-              >
-                Theme
+              <div style={{ fontWeight: 600, marginBottom: "6px" }}>Coming soon</div>
+              <div style={{ color: "#888", fontSize: "13px" }}>
+                Appearance settings are not available yet.
               </div>
-
-              <select
-                value={theme}
-                onChange={(e) =>
-                  setTheme(e.target.value)
-                }
-                style={inputStyle}
-              >
-                <option>Dark</option>
-                <option>Light</option>
-                <option>System</option>
-              </select>
-            </div>
-
-            <div style={cardStyle}>
-              <div
-                style={{
-                  fontWeight: 600,
-                  marginBottom: "8px",
-                }}
-              >
-                UI Scale: {uiScale}%
-              </div>
-
-              <input
-                type="range"
-                min="75"
-                max="150"
-                step="5"
-                value={uiScale}
-                onChange={(e) =>
-                  setUiScale(Number(e.target.value))
-                }
-                style={{
-                  width: "100%",
-                }}
-              />
             </div>
           </>
         )}
@@ -607,7 +703,7 @@ const handleInstall = async (version: string) => {
                   fontSize: "13px",
                 }}
               >
-                Version 0.1.0
+                Version 0.2.0
               </div>
             </div>
           </>
@@ -678,6 +774,12 @@ function SettingToggle({
             : "#444",
           transition: "0.2s",
           flexShrink: 0,
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.filter = "brightness(0.9)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.filter = "brightness(1)";
         }}
       >
         <div

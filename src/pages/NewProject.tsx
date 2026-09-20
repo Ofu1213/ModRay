@@ -13,6 +13,10 @@ interface NewProjectProps {
 
 const minecraftVersions = [
   {
+    group: "26.3.x",
+    versions: ["26.3"],
+  },
+  {
     group: "26.2.x",
     versions: ["26.2"],
   },
@@ -485,6 +489,15 @@ export default function NewProject({ onBack, onProjectCreated }: NewProjectProps
             fontSize: "14px",
             fontWeight: "500",
             cursor: "pointer",
+            transition: "all 0.2s ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "#0bb969";
+            e.currentTarget.style.transform = "translateY(-1px)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "#00AF5C";
+            e.currentTarget.style.transform = "translateY(0)";
           }}
         >
           Create Project
@@ -500,6 +513,19 @@ export default function NewProject({ onBack, onProjectCreated }: NewProjectProps
             borderRadius: "6px",
             fontSize: "14px",
             cursor: "pointer",
+            transition: "all 0.2s ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "#252525";
+            e.currentTarget.style.borderColor = "#444";
+            e.currentTarget.style.color = "#ffffff";
+            e.currentTarget.style.transform = "translateY(-1px)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "#1a1a1a";
+            e.currentTarget.style.borderColor = "#2a2a2a";
+            e.currentTarget.style.color = "#ccc";
+            e.currentTarget.style.transform = "translateY(0)";
           }}
         >
           Cancel

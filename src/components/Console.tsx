@@ -23,23 +23,38 @@ export interface TerminalTab {
   output: string;
 }
 
+type ConsoleTab = "problems" | "terminal" | "output" | "build" | "run";
+
 interface ConsoleProps {
   logs: string[];
-  buildLogs?: string[]; // Build log property
+  buildLogs?: string[];
+  runLogs?: string[];
   projectPath: string;
-  isBuilding?: boolean; // Build-in-progress flag
-  onRunBuild?: () => void; // Run the build from the console
+  isBuilding?: boolean;
+  isRunning?: boolean;
+  onRunBuild?: () => void;
+  onStopRun?: () => void;
+  activeTab?: ConsoleTab;
+  onTabChange?: (tab: ConsoleTab) => void;
+  onClearBuildLogs?: () => void;
+  onClearRunLogs?: () => void;
 }
 
 export default function Console({
   logs,
   buildLogs = [],
+  runLogs = [],
   projectPath,
   isBuilding = false,
+  isRunning = false,
   onRunBuild,
+  onStopRun,
+  activeTab,
+  onTabChange,
+  onClearBuildLogs,
+  onClearRunLogs,
 }: ConsoleProps) {
-  // Add "build" to the main tab type
-  const [mainTab, setMainTab] = useState<"terminal" | "output" | "build">("terminal");
+  const [mainTab, setMainTab] = useState<ConsoleTab>(activeTab ?? "terminal");
   const [terminals, setTerminals] = useState<TerminalTab[]>([]);
   const [activeTerminalId, setActiveTerminalId] = useState<string>("");
   const [showAddMenu, setShowAddMenu] = useState(false);
@@ -75,6 +90,12 @@ export default function Console({
   }, []);
 
   useEffect(() => {
+    if (activeTab) {
+      setMainTab(activeTab);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
     if (isInitialized.current || terminals.length > 0) return;
     isInitialized.current = true;
     createNewTerminal("powershell");
@@ -94,7 +115,12 @@ export default function Console({
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [terminals, logs, buildLogs, mainTab, activeTerminalId, currentInput]);
+  }, [terminals, logs, buildLogs, runLogs, mainTab, activeTerminalId, currentInput]);
+
+  const setConsoleTab = (tab: ConsoleTab) => {
+    setMainTab(tab);
+    onTabChange?.(tab);
+  };
 
   const createNewTerminal = (type: "powershell" | "cmd") => {
     const id = `term-${Date.now()}`;
@@ -173,6 +199,22 @@ export default function Console({
 
   const currentTerminal = terminals.find((t) => t.id === activeTerminalId);
 
+  const problems = [
+    ...buildLogs,
+    ...runLogs,
+    ...logs,
+  ].filter((entry) => {
+    const text = entry.toLowerCase();
+    return (
+      text.includes("error") ||
+      text.includes("failed") ||
+      text.includes("exception") ||
+      text.includes("warning") ||
+      text.includes("cannot") ||
+      text.includes("not found")
+    );
+  });
+
   return (
     <div
       style={{
@@ -236,35 +278,125 @@ export default function Console({
       >
         <div style={{ display: "flex" }}>
           <button
-            onClick={() => setMainTab("terminal")}
+            onClick={() => setConsoleTab("problems")}
+            style={{
+              ...topTabStyle,
+              borderBottom: mainTab === "problems" ? "2px solid #00AF5C" : "2px solid transparent",
+              color: mainTab === "problems" ? "#fff" : "#888",
+              background: mainTab === "problems" ? "rgba(255,255,255,0.02)" : "transparent",
+              transition: "all 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              if (mainTab !== "problems") {
+                e.currentTarget.style.color = "#dfe8ee";
+                e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (mainTab !== "problems") {
+                e.currentTarget.style.color = "#888";
+                e.currentTarget.style.background = "transparent";
+              }
+            }}
+          >
+            Problems
+          </button>
+          <button
+            onClick={() => setConsoleTab("terminal")}
             style={{
               ...topTabStyle,
               borderBottom: mainTab === "terminal" ? "2px solid #00AF5C" : "2px solid transparent",
               color: mainTab === "terminal" ? "#fff" : "#888",
+              background: mainTab === "terminal" ? "rgba(255,255,255,0.02)" : "transparent",
+              transition: "all 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              if (mainTab !== "terminal") {
+                e.currentTarget.style.color = "#dfe8ee";
+                e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (mainTab !== "terminal") {
+                e.currentTarget.style.color = "#888";
+                e.currentTarget.style.background = "transparent";
+              }
             }}
           >
             Terminal
           </button>
           <button
-            onClick={() => setMainTab("output")}
+            onClick={() => setConsoleTab("output")}
             style={{
               ...topTabStyle,
               borderBottom: mainTab === "output" ? "2px solid #00AF5C" : "2px solid transparent",
               color: mainTab === "output" ? "#fff" : "#888",
+              background: mainTab === "output" ? "rgba(255,255,255,0.02)" : "transparent",
+              transition: "all 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              if (mainTab !== "output") {
+                e.currentTarget.style.color = "#dfe8ee";
+                e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (mainTab !== "output") {
+                e.currentTarget.style.color = "#888";
+                e.currentTarget.style.background = "transparent";
+              }
             }}
           >
             Output Logs
           </button>
+          <button
+            onClick={() => setConsoleTab("run")}
+            style={{
+              ...topTabStyle,
+              borderBottom: mainTab === "run" ? "2px solid #00AF5C" : "2px solid transparent",
+              color: mainTab === "run" ? "#fff" : "#888",
+              background: mainTab === "run" ? "rgba(255,255,255,0.02)" : "transparent",
+              transition: "all 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              if (mainTab !== "run") {
+                e.currentTarget.style.color = "#dfe8ee";
+                e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (mainTab !== "run") {
+                e.currentTarget.style.color = "#888";
+                e.currentTarget.style.background = "transparent";
+              }
+            }}
+          >
+            Run Logs
+          </button>
           {/* Build log tab */}
           <button
-            onClick={() => setMainTab("build")}
+            onClick={() => setConsoleTab("build")}
             style={{
               ...topTabStyle,
               borderBottom: mainTab === "build" ? "2px solid #00AF5C" : "2px solid transparent",
               color: mainTab === "build" ? "#fff" : "#888",
+              background: mainTab === "build" ? "rgba(255,255,255,0.02)" : "transparent",
               display: "flex",
               alignItems: "center",
               gap: "6px",
+              transition: "all 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              if (mainTab !== "build") {
+                e.currentTarget.style.color = "#dfe8ee";
+                e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (mainTab !== "build") {
+                e.currentTarget.style.color = "#888";
+                e.currentTarget.style.background = "transparent";
+              }
             }}
           >
             Build Logs
@@ -284,22 +416,117 @@ export default function Console({
 
         {/* Action button shown when Build Logs is selected */}
         {mainTab === "build" && onRunBuild && (
-          <button
-            onClick={onRunBuild}
-            disabled={isBuilding}
-            style={{
-              background: isBuilding ? "#333" : "#4CAF50",
-              color: isBuilding ? "#888" : "#fff",
-              border: "1px solid #4CAF50",
-              borderRadius: "4px",
-              padding: "3px 10px",
-              fontSize: "12px",
-              cursor: isBuilding ? "not-allowed" : "pointer",
-              fontWeight: "bold",
-            }}
-          >
-            {isBuilding ? "Building..." : "🔨 Build Mod"}
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <button
+              onClick={onRunBuild}
+              disabled={isBuilding || isRunning}
+              style={{
+                background: isBuilding || isRunning ? "#1f1f1f" : "transparent",
+                border: `1px solid ${isBuilding || isRunning ? "#3a3a3a" : "#00AF5C"}`,
+                color: isBuilding || isRunning ? "#6a6a6a" : "#00AF5C",
+                borderRadius: "5px",
+                padding: "3px 10px",
+                fontSize: "12px",
+                fontWeight: "600",
+                cursor: isBuilding || isRunning ? "not-allowed" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                opacity: isBuilding || isRunning ? 0.75 : 1,
+                transition: "all 0.2s ease",
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>build</span>
+              {isBuilding ? "Building..." : "Build"}
+            </button>
+            <button
+              onClick={onClearBuildLogs}
+              style={{
+                background: "transparent",
+                border: "1px solid #444",
+                color: "#ccc",
+                borderRadius: "5px",
+                padding: "3px 8px",
+                fontSize: "12px",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                e.currentTarget.style.borderColor = "#666";
+                e.currentTarget.style.color = "#ffffff";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.borderColor = "#444";
+                e.currentTarget.style.color = "#ccc";
+              }}
+            >
+              Clear
+            </button>
+          </div>
+        )}
+
+        {mainTab === "run" && onStopRun && (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <button
+              onClick={isBuilding ? undefined : onStopRun}
+              disabled={isBuilding}
+              style={{
+                background: isRunning ? "#d32f2f" : "#00AF5C",
+                border: `1px solid ${isRunning ? "#d32f2f" : "#00AF5C"}`,
+                color: "#ffffff",
+                borderRadius: "5px",
+                padding: "3px 10px",
+                fontSize: "12px",
+                fontWeight: "600",
+                cursor: isBuilding ? "not-allowed" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                opacity: isBuilding ? 0.7 : 1,
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                if (!isBuilding) {
+                  e.currentTarget.style.filter = "brightness(1.08)";
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.filter = "none";
+                e.currentTarget.style.transform = "translateY(0)";
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>{isRunning ? "stop" : "play_arrow"}</span>
+              {isRunning ? "Stop Minecraft" : "Run Minecraft"}
+            </button>
+            <button
+              onClick={onClearRunLogs}
+              style={{
+                background: "transparent",
+                border: "1px solid #444",
+                color: "#ccc",
+                borderRadius: "5px",
+                padding: "3px 8px",
+                fontSize: "12px",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                e.currentTarget.style.borderColor = "#666";
+                e.currentTarget.style.color = "#ffffff";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.borderColor = "#444";
+                e.currentTarget.style.color = "#ccc";
+              }}
+            >
+              Clear
+            </button>
+          </div>
         )}
       </div>
 
@@ -323,12 +550,36 @@ export default function Console({
             userSelect: "text",
           }}
         >
-          {mainTab === "output" ? (
+          {mainTab === "problems" ? (
+            problems.length === 0 ? (
+              <div style={{ color: "#555", fontStyle: "italic" }}>
+                No problems reported.
+              </div>
+            ) : (
+              problems.map((log, i) => (
+                <div key={i} style={{ color: "#ff8a8a", lineHeight: "1.6", marginBottom: "6px" }}>
+                  {log}
+                </div>
+              ))
+            )
+          ) : mainTab === "output" ? (
             logs.map((log, i) => (
               <div key={i} style={{ color: "#aaa", lineHeight: "1.5" }}>
                 {log}
               </div>
             ))
+          ) : mainTab === "run" ? (
+            runLogs.length === 0 ? (
+              <div style={{ color: "#555", fontStyle: "italic" }}>
+                Run logs will appear here when you launch Minecraft...
+              </div>
+            ) : (
+              runLogs.map((log, i) => (
+                <div key={i} style={{ color: "#dcdcdc", lineHeight: "1.5" }}>
+                  {log}
+                </div>
+              ))
+            )
           ) : mainTab === "build" ? (
             /* Build log display area */
             buildLogs.length === 0 ? (

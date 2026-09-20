@@ -37,8 +37,21 @@ export default function Sidebar({ currentTab = "home", onSelectTab }: SidebarPro
           background: currentTab === "home" ? "#00AF5C" : "transparent",
           color: currentTab === "home" ? "#ffffff" : "#888888",
           transition: "all 0.2s",
+          boxShadow: currentTab === "home" ? "0 0 0 1px rgba(0,175,92,0.25)" : "none",
         }}
         title="Home"
+        onMouseEnter={(e) => {
+          if (currentTab !== "home") {
+            e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+            e.currentTarget.style.color = "#dfe8ee";
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (currentTab !== "home") {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.color = "#888888";
+          }
+        }}
       >
         <span className="material-symbols-outlined" style={{ fontSize: "22px" }}>
           home
@@ -48,16 +61,24 @@ export default function Sidebar({ currentTab = "home", onSelectTab }: SidebarPro
       {/* Bottom: account and settings buttons */}
       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
         <button
-          onClick={() => onSelectTab?.("account")}
-          style={subBtnStyle}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255, 255, 255, 0.15)")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-          title="Account"
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: "22px" }}>
-            person
-          </span>
-        </button>
+  onClick={() => onSelectTab?.("account")}
+  style={subBtnStyle}
+  onMouseEnter={(e) =>
+    (e.currentTarget.style.background = "rgba(255, 255, 255, 0.15)")
+  }
+  onMouseLeave={(e) =>
+    (e.currentTarget.style.background = "transparent")
+  }
+  title="Account"
+  aria-label="Account"
+>
+  <span
+    className="material-symbols-outlined"
+    style={{ fontSize: "22px" }}
+  >
+    person
+  </span>
+</button>
 
         <button
           onClick={() => onSelectTab?.("settings")}

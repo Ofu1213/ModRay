@@ -905,6 +905,17 @@ public class ${javaClassName} {
           alignItems: "center",
           gap: "6px",
           marginBottom: "12px",
+          transition: "all 0.2s ease",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "rgba(0, 175, 92, 0.12)";
+          e.currentTarget.style.borderColor = "#00AF5C";
+          e.currentTarget.style.color = "#dff9eb";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "transparent";
+          e.currentTarget.style.borderColor = "#333";
+          e.currentTarget.style.color = "#aaa";
         }}
       >
         <span

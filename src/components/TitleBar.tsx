@@ -1,17 +1,56 @@
 // src/components/TitleBar.tsx
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface TitleBarProps {
   projectName?: string;
   statusText?: string;
+  onMenuAction?: (action: string) => void;
 }
 
-export default function TitleBar({ projectName, statusText = "No running processes" }: TitleBarProps) {
+const menuItems: Record<string, Array<{ label: string; action: string }>> = {
+  File: [
+    { label: "New Project", action: "new-project" },
+    { label: "Open Home", action: "open-home" },
+    { label: "Exit", action: "app-exit" },
+  ],
+  Edit: [
+    { label: "Undo", action: "undo" },
+    { label: "Redo", action: "redo" },
+  ],
+  View: [
+    { label: "Home", action: "open-home" },
+    { label: "Settings", action: "open-settings" },
+    { label: "Account", action: "open-account" },
+  ],
+  Help: [
+    { label: "About ModRay", action: "about" },
+    { label: "Keyboard Shortcuts", action: "shortcuts" },
+  ],
+};
+
+export default function TitleBar({ projectName, statusText = "No running processes", onMenuAction }: TitleBarProps) {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setActiveMenu(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, []);
 
   const handleMinimize = () => (window.api as any)?.windowMinimize?.();
   const handleMaximize = () => (window.api as any)?.windowMaximize?.();
   const handleClose = () => (window.api as any)?.windowClose?.();
+
+  const handleMenuClick = (action: string) => {
+    onMenuAction?.(action);
+    setActiveMenu(null);
+  };
 
   return (
     <div
@@ -44,25 +83,64 @@ export default function TitleBar({ projectName, statusText = "No running process
         </span>
 
         {/* Menu bar */}
-        <div style={{ display: "flex", gap: "2px", alignItems: "center" }}>
-          {["File", "Edit", "View", "Help"].map((menu) => (
-            <div
-              key={menu}
-              onClick={() => setActiveMenu(activeMenu === menu ? null : menu)}
-              style={{
-                padding: "6px 10px",
-                borderRadius: "6px",
-                cursor: "pointer",
-                background: activeMenu === menu ? "#222" : "transparent",
-                color: activeMenu === menu ? "#fff" : "#a0a0a0",
-                fontSize: "13px",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#222")}
-              onMouseLeave={(e) => {
-                if (activeMenu !== menu) e.currentTarget.style.background = "transparent";
-              }}
-            >
-              {menu}
+        <div ref={menuRef} style={{ display: "flex", gap: "2px", alignItems: "center", position: "relative" }}>
+          {Object.keys(menuItems).map((menu) => (
+            <div key={menu} style={{ position: "relative" }}>
+              <div
+                onClick={() => setActiveMenu(activeMenu === menu ? null : menu)}
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  background: activeMenu === menu ? "#222" : "transparent",
+                  color: activeMenu === menu ? "#fff" : "#a0a0a0",
+                  fontSize: "13px",
+                  transition: "background 0.15s ease",
+                }}
+                onMouseEnter={(e) => {
+                  if (activeMenu !== menu) e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                }}
+                onMouseLeave={(e) => {
+                  if (activeMenu !== menu) e.currentTarget.style.background = "transparent";
+                }}
+              >
+                {menu}
+              </div>
+
+              {activeMenu === menu && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "34px",
+                    left: 0,
+                    minWidth: "180px",
+                    background: "#1b1b1b",
+                    border: "1px solid #333",
+                    borderRadius: "8px",
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+                    zIndex: 50,
+                    overflow: "hidden",
+                  }}
+                >
+                  {menuItems[menu].map((item) => (
+                    <div
+                      key={item.action}
+                      onClick={() => handleMenuClick(item.action)}
+                      style={{
+                        padding: "10px 12px",
+                        color: "#ddd",
+                        cursor: "pointer",
+                        fontSize: "12px",
+                        background: "transparent",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      {item.label}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
 
