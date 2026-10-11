@@ -25,6 +25,7 @@ declare global {
       createProject(data: {
         projectName: string;
         groupId: string;
+        modId: string;
         mcVersion: string;
         loader: string;
       }): Promise<{

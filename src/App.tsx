@@ -34,6 +34,7 @@ declare global {
       createProject: (data: {
         projectName: string;
         groupId: string;
+        modId: string;
         mcVersion: string;
         loader: string;
       }) => Promise<{
@@ -84,6 +85,7 @@ declare global {
           name: string;
           path: string;
           groupId?: string;
+          modId?: string;
           loader?: string;
           updatedAt?: number;
         }>;
@@ -197,6 +199,7 @@ export interface ProjectInfo {
   name: string;
   path: string;
   groupId?: string;
+  modId?: string;
   loader?: string;
   updatedAt?: number;
 }
@@ -322,6 +325,7 @@ export function App() {
   const handleProjectCreated = (
     projectPath: string,
     groupId: string,
+    modId: string,
     loader: string,
   ) => {
     const projectName = projectPath.split(/[\\/]/).pop() || "Project";
@@ -330,6 +334,7 @@ export function App() {
       name: projectName,
       path: projectPath,
       groupId,
+      modId,
       loader,
     };
 

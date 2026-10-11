@@ -753,6 +753,7 @@ return (
       >
         <FileExplorer
           projectName={project.name}
+          modId={project.modId || project.name.toLowerCase()}
           projectPath={project.path}
           groupId={project.groupId || "com.example"}
           currentFilePath={currentFilePath}

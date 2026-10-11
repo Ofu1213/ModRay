@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 
 interface FileExplorerProps {
   projectName: string;
+  modId: string;
   projectPath: string;
   groupId: string;
   loader?: "fabric" | "neoforge";
@@ -75,6 +76,7 @@ const PRESET_LANGUAGES = [
 
 export default function FileExplorer({
   projectName,
+  modId,
   projectPath,
   groupId,
   loader,
@@ -132,7 +134,7 @@ export default function FileExplorer({
     `${projectPath}${separator}src${separator}client${separator}java${separator}${groupPath}${separator}client`;
 
   const langDir =
-    `${projectPath}${separator}src${separator}main${separator}resources${separator}assets${separator}${projectName.toLowerCase()}${separator}lang`;
+    `${projectPath}${separator}src${separator}main${separator}resources${separator}assets${separator}${modId}${separator}lang`;
 
   const candidateConfigFiles: FileItem[] = [
     {
@@ -703,7 +705,7 @@ public class ${javaClassName} {
 
       const initialContent =
 `{
-  "item.${projectName.toLowerCase()}.example_item": "Example Item"
+  "item.${modId}.example_item": "Example Item"
 }
 `;
 

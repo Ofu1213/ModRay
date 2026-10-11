@@ -703,7 +703,7 @@ const handleInstall = async (version: string) => {
                   fontSize: "13px",
                 }}
               >
-                Version 0.2.0
+                Version 0.2.1
               </div>
             </div>
           </>

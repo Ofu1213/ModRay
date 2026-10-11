@@ -7,6 +7,7 @@ interface NewProjectProps {
   onProjectCreated: (
     projectPath: string,
     groupId: string,
+    modId: string,
     loader: string
   ) => void;
 }
@@ -55,11 +56,17 @@ const minecraftVersions = [
   },
 ];
 
+const fabricSupportedVersions = new Set(
+  minecraftVersions.flatMap((group) => group.versions),
+);
+
 
 
 export default function NewProject({ onBack, onProjectCreated }: NewProjectProps) {
   const [name, setName] = useState("");
   const [groupId, setGroupId] = useState("com.example");
+  const [modId, setModId] = useState("");
+  const [hasEditedModId, setHasEditedModId] = useState(false);
   const [mcVersion, setMcVersion] = useState("1.20.1");
   const [loader, setLoader] = useState("fabric");
   const [status, setStatus] = useState("");
@@ -75,29 +82,37 @@ export default function NewProject({ onBack, onProjectCreated }: NewProjectProps
       return;
     }
 
+    if (!/^[a-z][a-z0-9_]{0,63}$/.test(modId)) {
+      setStatus(
+        "Mod ID must start with a lowercase letter and contain only lowercase letters, numbers, or underscores (up to 64 characters).",
+      );
+      return;
+    }
+
     try {
       setStatus("Creating project...");
 
       const result = await window.api.createProject({
         projectName: name,
         groupId,
+        modId,
         mcVersion,
         loader,
       });
 
       if (result && result.success) {
-  setStatus("✓ Project Created!");
+        setStatus("✓ Project Created!");
 
-  if (result.success && result.path) {
-  onProjectCreated(
-    result.path,
-    groupId,
-    loader
-  );
-  } else {
-    setStatus("The project was created, but its path could not be retrieved.");
-  }
-}
+        if (result.path) {
+          onProjectCreated(result.path, groupId, modId, loader);
+        } else {
+          setStatus(
+            "The project was created, but its path could not be retrieved.",
+          );
+        }
+      } else {
+        setStatus(result?.message || "Project creation failed.");
+      }
     } catch (e) {
       console.error(e);
       setStatus("Communication failed.");
@@ -165,7 +180,20 @@ export default function NewProject({ onBack, onProjectCreated }: NewProjectProps
 
         <input
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            const projectName = e.target.value;
+            setName(projectName);
+            if (!hasEditedModId) {
+              const suggestedModId = projectName
+                .toLowerCase()
+                .replace(/[^a-z0-9_]/g, "_");
+              setModId(
+                /^[a-z]/.test(suggestedModId)
+                  ? suggestedModId.slice(0, 64)
+                  : `mod_${suggestedModId}`.slice(0, 64),
+              );
+            }
+          }}
           placeholder="MyMod"
           style={{
             padding: "10px 12px",
@@ -179,6 +207,52 @@ export default function NewProject({ onBack, onProjectCreated }: NewProjectProps
             fontSize: "14px",
           }}
         />
+      </div>
+
+      {/* Mod ID */}
+      <div style={{ marginBottom: "24px" }}>
+        <p
+          style={{
+            fontSize: "14px",
+            fontWeight: "500",
+            marginBottom: "8px",
+            color: "#e0e0e0",
+          }}
+        >
+          Mod ID
+        </p>
+
+        <input
+          value={modId}
+          onChange={(e) => {
+            setModId(e.target.value);
+            setHasEditedModId(true);
+          }}
+          placeholder="mymod"
+          style={{
+            padding: "10px 12px",
+            width: "350px",
+            boxSizing: "border-box",
+            background: "#1a1a1a",
+            color: "#fff",
+            border: "1px solid #2a2a2a",
+            borderRadius: "6px",
+            outline: "none",
+            fontSize: "14px",
+          }}
+        />
+
+        <p
+          style={{
+            fontSize: "12px",
+            color: "#666",
+            marginTop: "7px",
+            marginBottom: 0,
+          }}
+        >
+          Used in the generated mod files. Lowercase letters, numbers, and
+          underscores only.
+        </p>
       </div>
 
       {/* Group ID */}
@@ -310,7 +384,10 @@ export default function NewProject({ onBack, onProjectCreated }: NewProjectProps
           }}
         >
           {group.versions.map((version) => {
-            const enabled = version === "1.20.1";
+            const enabled =
+              loader === "fabric"
+                ? fabricSupportedVersions.has(version)
+                : version === "1.20.1";
             const selected = mcVersion === version;
 
             return (
@@ -370,7 +447,7 @@ export default function NewProject({ onBack, onProjectCreated }: NewProjectProps
       marginTop: "10px",
     }}
   >
-    Currently Supported Version: 1.20.1
+    Currently Supported Fabric Versions: 1.20 through 26.3
   </p>
 </div>
 

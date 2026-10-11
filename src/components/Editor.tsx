@@ -163,6 +163,11 @@ export default function Editor({ filePath, onBuild, onRun, onStop, isBuilding = 
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#1e1e1e" }}>
       {/* 💡 行番号部分を青い選択領域から除外するためのCSSスタイルを適用 */}
       <style>{`
+        .monaco-editor,
+        .monaco-editor .inputarea,
+        .monaco-editor .monaco-mouse-cursor-text,
+          font-family: "Consolas , 'Courier New', monospace" !important;
+        }
         .monaco-editor .line-numbers {
           user-select: none !important;
           -webkit-user-select: none !important;
@@ -288,7 +293,7 @@ export default function Editor({ filePath, onBuild, onRun, onStop, isBuilding = 
             minimap: { enabled: true },
             smoothScrolling: true,
             cursorBlinking: "smooth",
-            fontFamily: "'Fira Code', 'Consolas', monospace",
+            fontFamily: "Consolas , 'Courier New', monospace",
             selectOnLineNumbers: false, // 💡 行番号クリックによる全選択挙動を抑止
           }}
         />

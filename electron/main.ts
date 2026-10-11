@@ -74,11 +74,44 @@ function getFabricTemplateCachePath(mcVersion: string) {
   return path.join(getFabricTemplateCacheRoot(), mcVersion);
 }
 
+const FABRIC_TEMPLATE_VERSIONS = new Set([
+  "1.20",
+  "1.20.1",
+  "1.20.2",
+  "1.20.3",
+  "1.20.4",
+  "1.20.5",
+  "1.20.6",
+  "1.21",
+  "1.21.1",
+  "1.21.2",
+  "1.21.3",
+  "1.21.4",
+  "1.21.5",
+  "1.21.6",
+  "1.21.7",
+  "1.21.8",
+  "1.21.9",
+  "1.21.10",
+  "1.21.11",
+  "26.1",
+  "26.1.1",
+  "26.1.2",
+  "26.2",
+  "26.3",
+]);
+
 async function getFabricTemplate(
   mcVersion: string,
   sendLog?: (message: string) => void,
 ): Promise<string> {
   const log = sendLog || console.log;
+
+  if (!FABRIC_TEMPLATE_VERSIONS.has(mcVersion)) {
+    throw new Error(
+      `Fabric templates are not supported for Minecraft ${mcVersion}.`,
+    );
+  }
 
   const cachePath = getFabricTemplateCachePath(mcVersion);
 
@@ -440,7 +473,7 @@ function startCodexServer(mainWindow: BrowserWindow) {
         clientInfo: {
           name: "ModRay",
           title: "ModRay",
-          version: "0.2.0",
+          version: "0.2.1",
         },
       },
     }) + "\n",
@@ -1416,7 +1449,15 @@ ipcMain.handle(
 
 ipcMain.handle("create-project", async (_event, data) => {
   try {
-    const { projectName, groupId, mcVersion, loader } = data;
+    const { projectName, groupId, modId, mcVersion, loader } = data;
+
+    if (typeof modId !== "string" || !/^[a-z][a-z0-9_]{0,63}$/.test(modId)) {
+      return {
+        success: false,
+        message:
+          "Mod ID must start with a lowercase letter and contain only lowercase letters, numbers, or underscores (up to 64 characters).",
+      };
+    }
 
     let templatePath: string | undefined = undefined;
 
@@ -1542,8 +1583,6 @@ ipcMain.handle("create-project", async (_event, data) => {
         projectName.charAt(0).toUpperCase() + projectName.slice(1);
 
       const clientClassName = className + "Client";
-
-      const modId = projectName.toLowerCase();
 
       // =========================
       // Main Java
@@ -1692,8 +1731,6 @@ side="BOTH"
 
       const clientClassName = className + "Client";
 
-      const modId = projectName.toLowerCase();
-
       const mainJavaContent = `
 package ${safeGroupId};
 
@@ -1743,7 +1780,12 @@ public class ${clientClassName}
 
       const fabricModJsonPath = path.join(resourcesDirPath, "fabric.mod.json");
 
+      const fabricModJsonBase: Record<string, unknown> = JSON.parse(
+        await fsPromises.readFile(fabricModJsonPath, "utf-8"),
+      );
+      delete fabricModJsonBase.mixins;
       const fabricModJson = {
+        ...fabricModJsonBase,
         schemaVersion: 1,
         id: modId,
         version: "${version}",
@@ -1752,16 +1794,9 @@ public class ${clientClassName}
         authors: ["ModRay"],
         license: "MIT",
         icon: `assets/${modId}/icon.png`,
-        environment: "*",
         entrypoints: {
           main: [`${safeGroupId}.${className}`],
           client: [`${safeGroupId}.client.${clientClassName}`],
-        },
-        depends: {
-          fabricloader: ">=0.19.3",
-          minecraft: `~${mcVersion}`,
-          java: ">=17",
-          "fabric-api": "*",
         },
       };
 
@@ -1788,6 +1823,26 @@ public class ${clientClassName}
         `[TEMPLATE] Fabric ${mcVersion} template copied successfully!`,
       );
     }
+
+    const settingsGradlePath = path.join(projectPath, "settings.gradle");
+    const settingsGradle = fs.existsSync(settingsGradlePath)
+      ? await fsPromises.readFile(settingsGradlePath, "utf-8")
+      : "";
+    const rootProjectName = `rootProject.name = '${modId}'`;
+    const updatedSettingsGradle = /^\s*rootProject\.name\s*=.*$/m.test(
+      settingsGradle,
+    )
+      ? settingsGradle.replace(
+          /^\s*rootProject\.name\s*=.*$/m,
+          rootProjectName,
+        )
+      : `${settingsGradle.trimEnd()}${settingsGradle ? "\n" : ""}${rootProjectName}\n`;
+
+    await fsPromises.writeFile(
+      settingsGradlePath,
+      updatedSettingsGradle,
+      "utf-8",
+    );
 
     fs.mkdirSync(javaDirPath, { recursive: true });
     fs.mkdirSync(clientJavaDirPath, { recursive: true });
@@ -1876,6 +1931,58 @@ ipcMain.handle("get-projects", async () => {
 
           if (!groupId) groupId = "com.example";
 
+          let modId = "";
+          const fabricModJsonPath = path.join(
+            fullPath,
+            "src",
+            "main",
+            "resources",
+            "fabric.mod.json",
+          );
+          const modsTomlPaths = [
+            path.join(
+              fullPath,
+              "src",
+              "main",
+              "resources",
+              "META-INF",
+              "mods.toml",
+            ),
+            path.join(
+              fullPath,
+              "src",
+              "main",
+              "resources",
+              "META-INF",
+              "neoforge.mods.toml",
+            ),
+          ];
+
+          try {
+            if (fs.existsSync(fabricModJsonPath)) {
+              const fabricModJson = JSON.parse(
+                fs.readFileSync(fabricModJsonPath, "utf-8"),
+              );
+              modId =
+                typeof fabricModJson.id === "string" ? fabricModJson.id : "";
+            } else {
+              const modsTomlPath = modsTomlPaths.find((candidate) =>
+                fs.existsSync(candidate),
+              );
+              if (modsTomlPath) {
+                const modsToml = fs.readFileSync(modsTomlPath, "utf-8");
+                const match = modsToml.match(
+                  /^\s*modId\s*=\s*["']([^"']+)["']/m,
+                );
+                if (match?.[1]) {
+                  modId = match[1];
+                }
+              }
+            }
+          } catch (e) {
+            console.error("Failed to read modId from project files:", e);
+          }
+
           const isNeoForge = fs.existsSync(
             path.join(
               fullPath,
@@ -1891,6 +1998,7 @@ ipcMain.handle("get-projects", async () => {
             name: file,
             path: fullPath,
             groupId: groupId,
+            modId: modId || file.toLowerCase(),
             updatedAt: stat.mtimeMs,
             loader: loader,
           };
